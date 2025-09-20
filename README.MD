@@ -51,16 +51,16 @@ cd thomasnet-supplier-scraper
 
 Install required Python packages
 
-### optional: create and activate a venv first
+Optional: create and activate a venv first
 
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-### ensure pip is up-to-date
+Ensure pip is up-to-date
 
 python -m pip install --upgrade pip
 
-### then install
+Then Install
 
 python -m pip install -r .\requirements.txt
 
