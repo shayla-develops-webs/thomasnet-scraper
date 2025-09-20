@@ -1,0 +1,34 @@
+
+# Ignore test file
+test.py
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+venv/
+env/
+
+# Virtual environment folders
+shipper_leads_env/
+
+# Selenium profile (stores cookies, login info, etc.)
+thomasnet_selenium_profile/
+
+# Output leads (local use only, don't share)
+leads_output/
+
+# System / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.swp
