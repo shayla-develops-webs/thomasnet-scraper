@@ -1,6 +1,6 @@
 
 # Ignore test file
-test1.py
+*.test1.py
 # Python
 __pycache__/
 *.pyc
