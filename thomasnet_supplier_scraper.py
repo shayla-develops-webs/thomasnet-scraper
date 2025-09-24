@@ -1,31 +1,4 @@
-# thomasnet_json_scraper.py
-"""
-THOMASNET JSON SCRAPER
-Author: Shayla Rodgers
-Website: codedbyshay
-GitHub: Shayla-develops-webs
-
-Description:
-This script scrapes ThomasNet supplier search results and extracts company info
-(name, address, phone, etc.) into a CSV file. It can be customized to scrape
-any ThomasNet supplier search page that returns a list of companies.
-
-License:
-This project is open-source but protected. Users may use and modify this script
-for personal or educational purposes only. Commercial redistribution or
-resale is prohibited. Shayla Rodgers must be credited for the original work.
-
-Instructions:
-1. Update SEARCH_URL to the ThomasNet supplier search you want to scrape.
-2. Set MAX_LEADS to the maximum number of leads you want to collect (optional).
-3. Modify CSV columns or add more fields as needed.
-4. Run the script using Python 3.9-3.12:
-   > python thomasnet_supplier_scraper.py
-5. Login manually when prompted in the Chrome window.
-6. CSV files will be saved in the 'leads_output' folder.
-7. You can run this script multiple times a day; duplicates are automatically skipped.
-"""
-
+# thomasnet_supplier_scraper.py (v1.1)
 import time
 import random
 import os
@@ -44,14 +17,13 @@ import json
 # ------------------------
 # SETTINGS (Customize these)
 # ------------------------
-
-# Target ThomasNet search URL (any supplier search returning company list)
-SEARCH_URL = "https://www.thomasnet.com/suppliers/northern-ohio/all-cities/steel-fabrication-79941605/serving?cov=NO&heading=79941605&searchsource=suppliers&searchterm=steel+fabrication&what=steel+fabrication&which=prod"
+# Target ThomasNet search URL (example provided, can be changed)
+SEARCH_URL = "https://www.thomasnet.com/suppliers/northern-texas/all-cities/steel-79740205"
 
 # Maximum number of leads to scrape (set high if you want all)
-MAX_LEADS = 75
+MAX_LEADS = 150
 
-# CSV output columns - can add more fields like email, website, etc.
+# CSV output columns - can add more if desired (email, website, etc.)
 columns = [
     "company",
     "address",
@@ -63,7 +35,7 @@ columns = [
     "notes"
 ]
 
-# Output folder (auto-created if missing)
+# Output folder
 output_folder = "leads_output"
 os.makedirs(output_folder, exist_ok=True)
 
@@ -81,12 +53,23 @@ def load_previous_leads():
 existing_leads = load_previous_leads()
 
 # ------------------------
+# SAVE LEADS FUNCTION
+# ------------------------
+def save_leads_to_csv(leads, csv_filename):
+    """Save leads to CSV file"""
+    if leads:
+        df = pd.DataFrame(leads, columns=columns)
+        df.to_csv(csv_filename, index=False, encoding="utf-8")
+        print(f"✓ {len(leads)} leads saved to {csv_filename}")
+        return True
+    else:
+        print("No leads to save")
+        return False
+
+# ------------------------
 # INITIALIZE SELENIUM WITH SEPARATE PROFILE
 # ------------------------
 def initialize_driver():
-    """
-    Initializes Chrome browser using a separate Selenium profile to avoid conflicts.
-    """
     options = Options()
     selenium_profile_path = os.path.join(os.getcwd(), "thomasnet_selenium_profile")
     print(f"Using separate Selenium profile: {selenium_profile_path}")
@@ -114,36 +97,51 @@ def initialize_driver():
 # ------------------------
 # CHECK IF LOGGED IN
 # ------------------------
-def is_logged_in(driver):
-    """
-    Checks if user is logged in to ThomasNet.
-    Returns True if login is detected.
-    """
+def is_logged_in(driver, wait_time=2):
     try:
+        # Wait a moment for page to load
+        time.sleep(wait_time)
+        
         current_url = driver.current_url.lower()
         page_source = driver.page_source.lower()
 
+        
         if any(indicator in current_url for indicator in ['dashboard', 'account', 'profile']):
-            return True
-        if any(indicator in page_source for indicator in ['sign out', 'logout', 'my account', 'dashboard']):
+            print("Login detected via URL!")
             return True
 
+        
+        if 'login' in current_url and any(indicator in page_source for indicator in ['sign in', 'email', 'password']):
+            print("Still on login page")
+            return False
+
+        
+        if any(indicator in page_source for indicator in ['sign out', 'logout', 'my account', 'dashboard']):
+            print("Login detected via page content!")
+            return True
+
+        
         login_indicators = [
             "//a[contains(@href, 'account') and not(contains(@href, 'login'))]",
             "//button[contains(text(), 'Sign Out')]",
             "//a[contains(text(), 'Sign Out')]",
             "//*[contains(text(), 'My Account')]",
-            "//*[contains(text(), 'Dashboard')]"
+            "//*[contains(text(), 'Dashboard')]",
+            "//a[contains(@href, 'logout')]"
         ]
+
         for indicator in login_indicators:
             try:
                 element = driver.find_element(By.XPATH, indicator)
                 if element.is_displayed():
+                    print(f"Login detected via element: {indicator}")
                     return True
             except:
                 continue
 
+        print("No clear login indicators found.")
         return False
+
     except Exception as e:
         print(f"Error checking login status: {e}")
         return False
@@ -152,37 +150,50 @@ def is_logged_in(driver):
 # MANUAL LOGIN PROCESS
 # ------------------------
 def handle_login(driver):
-    """
-    Prompts user to login manually. Script pauses until login is completed.
-    """
     print("\n" + "="*60)
     print("LOGIN TO THOMASNET REQUIRED")
     print("="*60)
-    print("A Chrome window has opened. Please log in manually.")
-    print("Once logged in, return here and press ENTER.")
+    print("A Chrome window has opened.")
+    print("Please manually log in to ThomasNet in the browser.")
+    print("When ready, type 'done' and press ENTER to continue.")
+    print("Or type 'check' to verify if you're already logged in.")
     print("="*60)
 
     driver.get("https://www.thomasnet.com/account/login")
-    input("\nPress ENTER after you've successfully logged in...")
-
-    # Verify login
-    time.sleep(2)
-    for attempt in range(3):
-        if is_logged_in(driver):
-            print("✓ Login verified! Proceeding...")
-            return True
+    
+    while True:
+        user_input = input("\nType 'done' when logged in, or 'check' to verify login status: ").strip().lower()
+        
+        if user_input == 'check':
+            print("Checking login status...")
+            if is_logged_in(driver, wait_time=60):
+                print("✓ Login verified! You can proceed with scraping.")
+            else:
+                print("✗ Not logged in yet. Please complete the login process.")
+                
+        elif user_input == 'done':
+            print("Verifying login status...")
+            
+            for attempt in range(5):  
+                if is_logged_in(driver, wait_time=60):
+                    print("✓ Login verified! Proceeding with scraping...")
+                    return True
+                else:
+                    print(f"Still checking login status... (attempt {attempt + 1}/5)")
+                    time.sleep(5)  
+            
+            
+            retry = input("Login not detected. Try again? (y/n): ").strip().lower()
+            if retry != 'y':
+                return False
+                
         else:
-            print(f"Checking login status (attempt {attempt + 1}/3)...")
-            time.sleep(3)
-    return True
+            print("Please type either 'done' or 'check'")
 
 # ------------------------
 # JSON HASH HELPER
 # ------------------------
 def get_json_hash(driver):
-    """
-    Returns MD5 hash of the current page JSON data to detect updates.
-    """
     try:
         data = driver.execute_script("return JSON.stringify(window.__NEXT_DATA__.props.pageProps)")
         return hashlib.md5(data.encode()).hexdigest()
@@ -193,11 +204,8 @@ def get_json_hash(driver):
 # SCRAPER FUNCTION
 # ------------------------
 def scrape_thomasnet(driver):
-    """
-    Scrapes company info from ThomasNet search pages until max leads reached
-    or no more next page exists.
-    """
     leads = []
+
     print(f"Navigating to target URL...")
     driver.get(SEARCH_URL)
     time.sleep(random.uniform(5, 7))
@@ -219,7 +227,6 @@ def scrape_thomasnet(driver):
         companies = raw_json.get("companies", [])
         print(f"Found {len(companies)} companies on page {page_index}")
 
-        # Extract company info
         for company in companies:
             if len(leads) >= MAX_LEADS:
                 print(f"Reached maximum leads limit ({MAX_LEADS})")
@@ -238,8 +245,8 @@ def scrape_thomasnet(driver):
             address = ", ".join([part for part in address_parts if part])
             phone = company.get("primaryPhone", "N/A")
 
-            # Skip duplicates
             if (company_name, phone) in existing_leads or any(l[0] == company_name and l[2] == phone for l in leads):
+                print(f"Skipping duplicate: {company_name}")
                 continue
 
             leads.append([
@@ -254,12 +261,18 @@ def scrape_thomasnet(driver):
             ])
             print(f"✓ Added: {company_name} | {phone}")
 
+        # Save progress after each page
+        if leads and len(leads) % 25 == 0:  # Save every 25 leads (1 page)
+            temp_filename = csv_filename.replace('.csv', f'_temp_page{page_index}.csv')
+            save_leads_to_csv(leads, temp_filename)
+            print(f"Progress saved: {len(leads)} leads so far")
+
         if len(leads) >= MAX_LEADS:
             print(f"Reached target of {MAX_LEADS} leads!")
             break
 
         # Navigate to next page
-        print("Attempting to navigate to next page...")
+        print(f"Attempting to navigate to next page...")
         old_hash = get_json_hash(driver)
         next_page_clicked = False
 
@@ -270,6 +283,7 @@ def scrape_thomasnet(driver):
             "//a[contains(text(), 'Next')]",
             f"//a[text()='{page_index + 1}']"
         ]
+
         for method in next_page_methods:
             try:
                 next_button = driver.find_element(By.XPATH, method)
@@ -311,6 +325,7 @@ def scrape_thomasnet(driver):
 if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_filename = os.path.join(output_folder, f"thomasnet_leads_{timestamp}.csv")
+    leads = [] 
 
     print("="*60)
     print("THOMASNET LEAD SCRAPER")
@@ -331,21 +346,24 @@ if __name__ == "__main__":
         print("\nStarting lead scraping process...")
         leads = scrape_thomasnet(driver)
 
-        if leads:
-            df = pd.DataFrame(leads, columns=columns)
-            df.to_csv(csv_filename, index=False, encoding="utf-8")
-            print(f"\n✓ SUCCESS! {len(leads)} leads saved to {csv_filename}")
-        else:
-            print("\n! No new leads found. Creating empty CSV with headers.")
-            pd.DataFrame(columns=columns).to_csv(csv_filename, index=False, encoding="utf-8")
-
     except KeyboardInterrupt:
-        print("\nScraping interrupted by user.")
+        print(f"\nScraping interrupted by user. Scraped {len(leads)} leads so far.")
     except Exception as e:
         print(f"\nScraper failed with error: {e}")
-        pd.DataFrame(columns=columns).to_csv(csv_filename, index=False, encoding="utf-8")
+        print(f"Scraped {len(leads)} leads before failure.")
     finally:
+        # Always try to save whatever leads we got
+        if leads:
+            save_leads_to_csv(leads, csv_filename)
+            print(f"\n✓ SUCCESS! Final save completed.")
+        else:
+            print("Creating empty CSV with headers...")
+            pd.DataFrame(columns=columns).to_csv(csv_filename, index=False, encoding="utf-8")
+        
         print("\nClosing browser...")
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                print("Warning: Error closing browser, but continuing...")
         print("Done!")

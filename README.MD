@@ -29,6 +29,20 @@ This script is designed for educational and non-commercial purposes, with clear 
 - Can run multiple times per day.
 - Open-source with credit to the original author.
 
+## Recent Updates (v1.1)
+
+### Bug Fixes & Improvements
+- **Enhanced Login Process**: Interactive login verification with `check` and `done` commands for better user control
+- **Data Loss Prevention**: Script now saves all scraped leads even if it crashes or times out
+- **Progress Tracking**: Automatic progress saves after each page to prevent data loss
+- **Improved Error Handling**: Better recovery from connection timeouts and browser issues
+- **Smart Login Detection**: Optimized timing for login verification (60 seconds during login, 2 seconds for regular checks)
+
+### What's Fixed
+- CSV files no longer empty when script encounters errors
+- Login verification now gives adequate time for manual authentication
+- Progress is preserved even during connection timeouts
+- Browser cleanup errors no longer cause script crashes
 ---
 
 ## Requirements
