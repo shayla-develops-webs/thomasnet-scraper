@@ -97,6 +97,8 @@ def initialize_driver():
 # ------------------------
 # CHECK IF LOGGED IN
 # ------------------------
+
+# if you're logging in for the first time, you might want to increase wait_time to 40 seconds or more so you have enough time to complete the login process
 def is_logged_in(driver, wait_time=2):
     try:
         # Wait a moment for page to load
